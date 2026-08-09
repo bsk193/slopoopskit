@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PS5 Jailbreak</title>
+<style>
+:root {
+    --bg: #0d0d10;
+    --bg-card: #16161a;
+    --bg-elevated: #1e1e24;
+    --border: #2a2a32;
+    --text: #e8e8ec;
+    --text-muted: #8a8a95;
+    --accent: #00d4aa;
+    --accent-dim: #00d4aa33;
+    --danger: #ff4757;
+    --warning: #ffa502;
+    --info: #3498db;
+    --success: #2ed573;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.container {
+    width: 100%;
+    max-width: 520px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.logo {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--accent), #008f73);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 28px;
+    font-weight: 800;
+    color: #fff;
+    box-shadow: 0 4px 24px rgba(0, 212, 170, 0.2);
+}
+
+.header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+}
+
+.header p {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+.status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+}
+.status-row:last-child { border-bottom: none; }
+
+.status-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+}
+
+.status-icon {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: background 0.3s;
+}
+.status-icon.ok { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.status-icon.warn { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+.status-icon.err { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+.status-icon.info { background: var(--info); box-shadow: 0 0 8px var(--info); }
+
+.status-value {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    text-align: right;
+}
+.status-value.highlight {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), #00b894);
+    color: #000;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+    position: relative;
+    overflow: hidden;
+}
+.btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 212, 170, 0.3);
+}
+.btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    filter: grayscale(1);
+}
+
+.btn-running::after {
+    content: "";
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.console {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    max-height: 240px;
+    overflow-y: auto;
+    color: var(--text-muted);
+    display: none;
+}
+.console.visible { display: block; }
+.console .line { margin-bottom: 2px; }
+.console .line.ok { color: var(--success); }
+.console .line.err { color: var(--danger); }
+.console .line.warn { color: var(--warning); }
+.console .line.info { color: var(--info); }
+.console .line.stage { color: var(--accent); font-weight: 600; }
+
+.footer {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.footer a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+.footer a:hover { color: var(--accent); }
+
+.notice {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.8125rem;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: none;
+}
+.notice.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="logo">PS5</div>
+        <h1>PS5 Jailbreak</h1>
+        <p>Browser-based kernel exploit for PS5 9.00 - 12.70</p>
+    </div>
+
+    <div class="notice" id="notice"></div>
+
+    <div class="card">
+        <div class="status-row">
+            <div class="status-label">
+                <div class="status-icon" id="icon-fw"></div>
+                <span>Firmware</span>
+            </div>
+            <div class="status-value" id="val-fw">Detecting...</div>
+        </div>
+        <div class="status-row">
+            <div class="status-label">
+                <div class="status-icon" id="icon-support"></div>
+                <span>Support Status</span>
+            </div>
+            <div class="status-value" id="val-support">Checking...</div>
+        </div>
+        <div class="status-row">
+            <div class="status-label">
+                <div class="status-icon" id="icon-method"></div>
+                <span>Exploit Method</span>
+            </div>
+            <div class="status-value" id="val-method">--</div>
+        </div>
+        <div class="status-row">
+            <div class="status-label">
+                <div class="status-icon" id="icon-offsets"></div>
+                <span>Offsets</span>
+            </div>
+            <div class="status-value" id="val-offsets">Loading...</div>
+        </div>
+    </div>
+
+    <button class="btn disabled" id="run-btn" disabled>RUN EXPLOIT</button>
+
+    <div class="console" id="console"></div>
+
+    <div class="footer">
+        <p>Based on slopkit2 by zecoxao &middot; Kernel exploits by TheFloW, egycnq, Gezine</p>
+        <p><a href="https://github.com/">GitHub</a> &middot; <a href="#">Documentation</a></p>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+const NOTIFY_URL = "notify.html";
+const LAPSE_URL = "netctrl.html";
+const OFFSETS_URL = "offsets/offsets.json";
+
+const LAPSE_FIRMWARES = new Set([
+    "09.00", "09.20", "09.40", "09.60", "10.00",
+    "10.01", "10.20", "10.40", "10.60", "11.00",
+    "11.20", "11.40", "11.60", "12.00", "12.02",
+    "12.20", "12.40", "12.60", "12.70",
+]);
+
+const METHODS = {
+    lapse:   { name: "Lapse (AIO)",        desc: "Instant",       color: "#2ed573" },
+    poops:   { name: "Poops (NetControl)", desc: "~30s - 2min",  color: "#ffa502" },
+    p2jb:    { name: "P2JB (Refcnt)",      desc: "~50 minutes",  color: "#ff4757" },
+    unknown: { name: "Unknown",            desc: "Not supported", color: "#8a8a95" },
+};
+
+function fwNum(s) {
+    const p = s.split(".");
+    return parseInt(p[0], 10) * 100 + parseInt(p[1], 10);
+}
+
+function getMethod(fw) {
+    if (!fw) return "unknown";
+    const n = fwNum(fw);
+    if (n >= 900 && n <= 1001) return "lapse";
+    if (n >= 1020 && n <= 1200) return "poops";
+    if (n >= 1202 && n <= 1270) return "p2jb";
+    return "unknown";
+}
+
+function nearest(data, target) {
+    const want = fwNum(target);
+    const maj = target.split(".")[0];
+    let best = null, bestd = 1e9;
+    for (const k in data) {
+        if (k.split(".")[0] !== maj) continue;
+        const d = Math.abs(fwNum(k) - want);
+        if (d < bestd) { bestd = d; best = k; }
+    }
+    return best;
+}
+
+const $ = id => document.getElementById(id);
+const setIcon = (id, cls) => { $(id).className = "status-icon " + cls; };
+const setVal = (id, text, highlight) => {
+    const el = $(id);
+    el.textContent = text;
+    el.className = "status-value" + (highlight ? " highlight" : "");
+};
+
+function log(msg, type) {
+    const c = $("console");
+    c.classList.add("visible");
+    const line = document.createElement("div");
+    line.className = "line " + (type || "");
+    line.textContent = msg;
+    c.appendChild(line);
+    c.scrollTop = c.scrollHeight;
+}
+
+const m = /PlayStation 5\/(\d+)\.(\d+)/.exec(navigator.userAgent);
+const fw = m ? `${m[1].padStart(2, "0")}.${m[2].padStart(2, "0")}` : null;
+const method = getMethod(fw);
+
+if (!fw) {
+    setIcon("icon-fw", "err");
+    setVal("val-fw", "Not a PS5", false);
+    setIcon("icon-support", "err");
+    setVal("val-support", "Unsupported", false);
+    setIcon("icon-method", "err");
+    setVal("val-method", "--");
+    setIcon("icon-offsets", "err");
+    setVal("val-offsets", "N/A");
+    $("run-btn").textContent = "NOT A PS5";
+} else {
+    setIcon("icon-fw", "ok");
+    setVal("val-fw", fw, true);
+
+    const mi = METHODS[method];
+    setIcon("icon-method", method === "unknown" ? "err" : "info");
+    setVal("val-method", mi.name + " - " + mi.desc);
+
+    if (method === "unknown") {
+        setIcon("icon-support", "err");
+        setVal("val-support", "Not supported", false);
+        $("run-btn").textContent = "UNSUPPORTED";
+        const notice = $("notice");
+        notice.textContent = `Firmware ${fw} is not supported. Supported: 9.00 - 12.70.`;
+        notice.classList.add("visible");
+    } else {
+        setIcon("icon-support", "ok");
+        setVal("val-support", "Supported", true);
+    }
+}
+
+let entry = null;
+
+fetch(OFFSETS_URL, { cache: "no-store" })
+    .then(r => r.json())
+    .then(data => {
+        if (!fw) return;
+        entry = data[fw];
+        if (entry) {
+            setIcon("icon-offsets", "ok");
+            setVal("val-offsets", "Loaded", true);
+            if (method !== "unknown") {
+                $("run-btn").disabled = false;
+                $("run-btn").classList.remove("disabled");
+            }
+            return;
+        }
+        const near = nearest(data, fw);
+        if (near) {
+            entry = data[near];
+            setIcon("icon-offsets", "warn");
+            setVal("val-offsets", `Using ${near} (approximate)`, false);
+            if (method !== "unknown") {
+                $("run-btn").disabled = false;
+                $("run-btn").classList.remove("disabled");
+            }
+            log(`Warning: no exact offsets for ${fw}, using ${near}`, "warn");
+        } else {
+            setIcon("icon-offsets", "err");
+            setVal("val-offsets", "Not found", false);
+        }
+    })
+    .catch(() => {
+        setIcon("icon-offsets", "err");
+        setVal("val-offsets", "Failed to load", false);
+        log("Failed to load offsets.json", "err");
+    });
+
+$("run-btn").addEventListener("click", function () {
+    if (!entry) return;
+    const btn = $("run-btn");
+    btn.disabled = true;
+    btn.classList.add("btn-running");
+    btn.textContent = "RUNNING...";
+    log("Starting exploit chain...", "stage");
+    log(`Firmware: ${fw}, Method: ${METHODS[method].name}`, "info");
+
+    const q = new URLSearchParams();
+    q.set("go", "1");
+    q.set("fw", fw);
+    q.set("hc", entry.hc.join(","));
+    q.set("gd", entry.gd);
+    q.set("notify", entry.nt);
+    q.set("gps", entry.gps);
+    q.set("gpe", entry.gpe);
+    q.set("cls", entry.cls);
+    q.set("cle", entry.cle);
+    q.set("ers", entry.ers);
+    q.set("ere", entry.ere);
+
+    const dest = LAPSE_FIRMWARES.has(fw) ? LAPSE_URL : NOTIFY_URL;
+    location.href = `${dest}?${q.toString()}`;
+});
+</script>
+
+</body>
+</html>

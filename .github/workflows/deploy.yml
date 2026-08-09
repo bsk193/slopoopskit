@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Verify structure
+        run: |
+          echo "=== Repository Structure ==="
+          find . -type f | sort
+          echo ""
+          echo "=== Checking required files ==="
+          test -f index.html || (echo "ERROR: index.html missing" && exit 1)
+          test -f netctrl.html || (echo "ERROR: netctrl.html missing" && exit 1)
+          test -f notify.html || (echo "ERROR: notify.html missing" && exit 1)
+          test -f src/netctrl-ps5.js || (echo "ERROR: src/netctrl-ps5.js missing" && exit 1)
+          test -f src/lapse-runtime.js || (echo "ERROR: src/lapse-runtime.js missing" && exit 1)
+          test -f offsets/offsets.json || (echo "ERROR: offsets/offsets.json missing" && exit 1)
+          test -f elfldr-ps5-1360.elf || (echo "WARNING: elfldr-ps5-1360.elf missing" && exit 0)
+          test -f kexp_2026_05_25.bin || (echo "WARNING: kexp_2026_05_25.bin missing" && exit 0)
+          echo "All required files present."
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
