@@ -175,12 +175,21 @@ window.__slopkit_progress = updateProgress;
         log("Initializing exploit runtime...", "stage");
         updateProgress(5, "Loading runtime");
         
-        await window.netctrl_ps5.run(params);
+        const ok = await window.netctrl_ps5.run(params);
         
-        updateProgress(100, "Complete");
-        statusBadge.textContent = "Success";
-        statusBadge.className = "status-badge success";
-        log("Jailbreak complete. ELF loader should be active on port 9021.", "ok");
+        if (ok) {
+            updateProgress(100, "Complete");
+            statusBadge.textContent = "Success";
+            statusBadge.className = "status-badge success";
+            log("Jailbreak complete. ELF loader should be active on port 9021.", "ok");
+        } else {
+            updateProgress(75);
+            statusBadge.textContent = "Partial";
+            statusBadge.className = "status-badge error";
+            log("Jailbreak verified (uid=0, kernel R/W live) but ELF loader did not start.", "warn");
+            log("This usually means the exploit chain won the race but elfldr failed to load.", "warn");
+            log("Reboot the console and retry — the kernel bug is confirmed reachable.", "info");
+        }
     } catch (e) {
         updateProgress(0);
         statusBadge.textContent = "Failed";

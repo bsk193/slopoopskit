@@ -3775,10 +3775,17 @@ function run() {
         return true;
     }
 
-    try { loadElfldr(); }
+    let elfldrOk = false;
+    try { elfldrOk = loadElfldr(); }
     catch (e) { beacon("elfldr: " + e.message); log("elfldr load failed: " + e.message); }
 
     try { sessionStorage.removeItem("netctrl_dirty"); } catch (e) {}
+    if (!elfldrOk) {
+        beacon("phase: JAILBROKEN (no elfldr)");
+        log("jailbreak verified but elfldr did not start; kernel R/W is live, "
+            + "but no payload server is listening");
+        return false;
+    }
     beacon("phase: JAILBROKEN");
     log("done");
     return true;
