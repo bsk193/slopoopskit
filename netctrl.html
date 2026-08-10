@@ -166,6 +166,7 @@ const updateProgress = (pct, stage) => {
 };
 
 // Hook into the exploit's beacon/logging if available
+window.__elfldr_diag = [];
 window.slopkit = window.slopkit || {};
 window.slopkit.screenLine = (m) => log(m, "info");
 window.__slopkit_log = log;
@@ -178,6 +179,13 @@ window.__slopkit_progress = updateProgress;
         updateProgress(5, "Loading runtime");
         
         const ok = await window.netctrl_ps5.run(params);
+        
+        // Dump any diagnostics collected during loadElfldr()
+        const diag = window.__elfldr_diag || [];
+        if (diag.length > 0) {
+            log("--- elfldr diagnostics ---", "stage");
+            for (const line of diag) log(line, "info");
+        }
         
         if (ok) {
             updateProgress(100, "Complete");
@@ -193,6 +201,11 @@ window.__slopkit_progress = updateProgress;
             log("Reboot the console and retry — the kernel bug is confirmed reachable.", "info");
         }
     } catch (e) {
+        const diag = window.__elfldr_diag || [];
+        if (diag.length > 0) {
+            log("--- elfldr diagnostics ---", "stage");
+            for (const line of diag) log(line, "info");
+        }
         updateProgress(0);
         statusBadge.textContent = "Failed";
         statusBadge.className = "status-badge error";

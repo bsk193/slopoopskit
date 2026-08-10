@@ -831,10 +831,8 @@ function isKernelPtr(a) {
 // Always beaconed, regardless of the race-time trace muting. Used only for
 // facts we cannot afford to lose - a panic ends the session with no log.
 function beacon(m) {
-    /* Mirror to the on-screen log AS WELL as the server. These used to go only
-     * to the host, so the console showed nothing but the cat and the operator
-     * had to ask what was happening. Screen first - if the beacon XHR throws
-     * or the host is gone, the line is still visible on the TV. */
+    const diag = window.__elfldr_diag;
+    if (diag) diag.push(m);
     const scr = window.slopkit && window.slopkit.screenLine;
     if (scr) { try { scr(m); } catch (e) { /* ignore */ } }
     const htmlLog = window.__slopkit_log;
