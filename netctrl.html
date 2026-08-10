@@ -128,9 +128,8 @@ body {
     </div>
 </div>
 
-<script type="module">
-import { run } from "./src/netctrl-ps5.js";
-
+<script src="./src/netctrl-ps5.js"></script>
+<script>
 const consoleEl = document.getElementById("console");
 const progressFill = document.getElementById("progress-fill");
 const statusBadge = document.getElementById("status-badge");
@@ -176,7 +175,7 @@ window.__slopkit_progress = updateProgress;
         log("Initializing exploit runtime...", "stage");
         updateProgress(5, "Loading runtime");
         
-        await run(params);
+        await window.netctrl_ps5.run(params);
         
         updateProgress(100, "Complete");
         statusBadge.textContent = "Success";

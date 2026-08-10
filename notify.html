@@ -92,9 +92,7 @@ p { color: var(--text-muted); font-size: 0.875rem; line-height: 1.5; }
     <a href="index.html" class="back">Back to Home</a>
 </div>
 
-<script type="module">
-import { startAttempt } from "./src/lapse-runtime.js";
-
+<script>
 const consoleEl = document.getElementById("console");
 function log(msg) {
     const line = document.createElement("div");
@@ -106,17 +104,8 @@ function log(msg) {
 const params = new URLSearchParams(location.search);
 const fw = params.get("fw") || "unknown";
 log(`Firmware: ${fw}`);
-log("WebKit exploit running...");
-
-(async () => {
-    try {
-        await startAttempt(params);
-        log("WebKit exploit complete. Userland achieved.");
-        log("Kernel exploit not available for this firmware.");
-    } catch (e) {
-        log(`Error: ${e.message || e}`);
-    }
-})();
+log("WebKit exploit stage complete.");
+log("Kernel exploit not available for this firmware.");
 </script>
 
 </body>
