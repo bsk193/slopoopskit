@@ -1,4 +1,4 @@
-/* netctrl-ps5.js v5 2026-08-10 — sys_netcontrol / Netgraph UAF, PS4 -> PS5, driven from WebKit.
+/* netctrl-ps5.js v6 2026-08-10 — sys_netcontrol / Netgraph UAF, PS4 -> PS5, driven from WebKit.
  *
  * Sources:
  *   CSSFontFace-Exploit public/src/netctrl.js  (ntfargo, ufm42) — PS4 JS chain
